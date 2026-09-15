@@ -81,13 +81,13 @@ run.bat
 Windows 打包成 exe：
 
 ```bat
-.venv\Scripts\pyinstaller --noconfirm --windowed --name DesktopPet main.py
+.venv\Scripts\pyinstaller --noconfirm --windowed --name DesktopPet --icon icon.ico main.py
 ```
 
 macOS 打包成 app：
 
 ```bash
-.venv/bin/pyinstaller --noconfirm --windowed --name DesktopPet main.py
+.venv/bin/pyinstaller --noconfirm --windowed --name DesktopPet --icon icon.icns main.py
 ```
 
 产物在 `dist/DesktopPet/`。
@@ -103,6 +103,8 @@ DesktopPet/
 ├── pet_art.py     # 用代码绘制小猫 / 小狗
 ├── cleaner.py     # 扫描与清理逻辑（跨平台）
 ├── dialogs.py     # 清理预览窗口、磁盘占用窗口
+├── make_icon.py   # 生成 icon.ico / icon.icns
+├── icon.png / icon.ico / icon.icns
 ├── requirements.txt
 ├── run.sh / run.bat
 └── README.md

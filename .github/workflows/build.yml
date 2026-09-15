@@ -28,10 +28,10 @@ jobs:
         run: python -m pip install --upgrade pip -r requirements.txt pyinstaller
       - name: Build (Windows)
         if: runner.os == 'Windows'
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name DesktopPet main.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name DesktopPet --icon icon.ico main.py
       - name: Build (macOS)
         if: runner.os == 'macOS'
-        run: pyinstaller --noconfirm --clean --windowed --name DesktopPet main.py
+        run: pyinstaller --noconfirm --clean --windowed --name DesktopPet --icon icon.icns main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
