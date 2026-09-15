@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 import cleaner
 from dialogs import CleanPreviewDialog, DiskUsageDialog
 from pet import Pet
+from pet_art import SIZE_PRESETS
 
 APP_NAME = "DesktopPet"
 
@@ -69,9 +70,14 @@ class PetApp:
         self.app = app
         self.settings = QSettings("donutboy09", APP_NAME)
         species = self.settings.value("species", "cat", type=str)
+        size = self.settings.value("size", "small", type=str)
+        if size not in SIZE_PRESETS:
+            size = "small"
 
-        self.pet = Pet(species=species)
+        self.pet = Pet(species=species, size=size)
+        self.pet.set_free_roam(self.settings.value("free_roam", True, type=bool))
         self._restore_position()
+        self.pet.menu_requested.connect(self._show_pet_menu)
         self.pet.show()
 
         self.tray = QSystemTrayIcon(make_paw_icon(), app)
@@ -98,38 +104,69 @@ class PetApp:
     def _build_menu(self) -> QMenu:
         menu = QMenu()
 
-        header = menu.addAction("桌面宠物")
+        header = menu.addAction(f"{'小猫' if self.pet.species == 'cat' else '小狗'} · 饱食度 {int(self.pet.hunger)}%")
         header.setEnabled(False)
         menu.addSeparator()
 
-        menu.addAction("清空缓存", lambda: self._scan("cache", cleaner.scan_cache))
+        menu.addAction("喂食", self._feed)
+        menu.addAction("逗它玩", self.pet.trigger_happy)
+        menu.addAction("睡觉 / 叫醒", self._toggle_sleep)
+        freeze = menu.addAction("不动")
+        freeze.setCheckable(True)
+        freeze.setChecked(not self.pet.free_roam)
+        freeze.triggered.connect(self._toggle_freeze)
+        menu.addSeparator()
+
+        menu.addAction("清理缓存", lambda: self._scan("cache", cleaner.scan_cache))
         menu.addAction("清理临时文件", lambda: self._scan("temp", cleaner.scan_temp))
         menu.addAction("清理下载文件夹", lambda: self._scan("downloads", cleaner.scan_downloads))
         menu.addAction("清空回收站", self._empty_trash)
-        menu.addSeparator()
         menu.addAction("清理桌面无用文件", lambda: self._scan("desktop", cleaner.scan_desktop_junk))
         menu.addAction("查看磁盘占用", self._show_disk_usage)
         menu.addSeparator()
 
         pet_menu = menu.addMenu("切换宠物")
-        cat = pet_menu.addAction("小猫")
-        cat.setCheckable(True)
-        cat.setChecked(self.pet.species == "cat")
-        cat.triggered.connect(lambda: self._set_species("cat"))
-        dog = pet_menu.addAction("小狗")
-        dog.setCheckable(True)
-        dog.setChecked(self.pet.species == "dog")
-        dog.triggered.connect(lambda: self._set_species("dog"))
+        for key, label in (("cat", "小猫"), ("dog", "小狗")):
+            action = pet_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(self.pet.species == key)
+            action.triggered.connect(lambda _=False, k=key: self._set_species(k))
 
-        menu.addAction("逗它玩", self.pet.trigger_happy)
-        menu.addAction("睡觉 / 叫醒", self.pet.toggle_sleep)
+        size_menu = menu.addMenu("大小")
+        for key, label in (("small", "小"), ("medium", "中"), ("large", "大")):
+            action = size_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(self.pet.size_name == key)
+            action.triggered.connect(lambda _=False, k=key: self._set_size(k))
+
         menu.addSeparator()
         menu.addAction("隐藏", lambda: self.pet.hide())
         menu.addAction("退出", self._quit)
         return menu
 
+    def _show_pet_menu(self, pos):
+        self._build_menu().exec(pos)
+
     def _refresh_tray_menu(self):
         self.tray.setContextMenu(self._build_menu())
+
+    def _feed(self):
+        self.pet.feed()
+        self._refresh_tray_menu()
+
+    def _toggle_sleep(self):
+        self.pet.toggle_sleep()
+        self._refresh_tray_menu()
+
+    def _toggle_freeze(self, checked):
+        self.pet.set_free_roam(not checked)
+        self.settings.setValue("free_roam", self.pet.free_roam)
+        self._refresh_tray_menu()
+
+    def _set_size(self, size: str):
+        self.pet.set_size(size)
+        self.settings.setValue("size", size)
+        self._refresh_tray_menu()
 
     def _set_species(self, species: str):
         self.pet.set_species(species)
@@ -190,6 +227,8 @@ class PetApp:
     def _quit(self):
         self.settings.setValue("pos", self.pet.pos())
         self.settings.setValue("species", self.pet.species)
+        self.settings.setValue("size", self.pet.size_name)
+        self.settings.setValue("free_roam", self.pet.free_roam)
         self.tray.hide()
         self.pet.close()
         self.app.quit()
